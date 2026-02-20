@@ -1,6 +1,4 @@
 from PyPDF2 import PdfReader
-import chromadb
-from typing import List
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -23,7 +21,7 @@ embedding = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001",api
 vector_store = Chroma(
     collection_name="user_knowledge",
     embedding_function=embedding,
-    persist_directory="./data/rag/my_ai_memory"
+    persist_directory="./chroma_db"
 )
 
 def ingest_pdfs_to_chroma(path: str):
@@ -58,4 +56,4 @@ def ingest_pdfs_to_chroma(path: str):
     print(f"Successfully ingested {len(all_chunks)} chunks into ChromaDB.")
 
 # Usage
-ingest_pdfs_to_chroma("./data/user/Resume.pdf")
+# ingest_pdfs_to_chroma("./data/user/Resume.pdf")
