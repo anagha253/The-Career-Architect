@@ -9,6 +9,9 @@ A **Cyclic Multi-Agent Career Strategist** that researches jobs, analyzes them a
 - **Human-in-the-loop (HITL)** — Pauses for your approval before generating any cold email
 - **Cold email generation** — Drafts and polishes professional outreach emails tailored to each opportunity
 
+## Workflow
+![alt text](assets/image.png)
+
 ## Tech Stack
 
 - **LangGraph** (v0.2+) — Multi-agent orchestration and graph-based workflow
