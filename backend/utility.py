@@ -5,63 +5,73 @@ from langchain_community.vectorstores import Chroma
 import os
 from dotenv import load_dotenv
 
-'''
+"""
 Retrieval of info from resume and project files
-'''
-
+"""
 
 
 load_dotenv()
 llm_key = os.getenv("LLM_KEY") or os.getenv("GOOGLE_API_KEY")
 
 
+embedding = GoogleGenerativeAIEmbeddings(
+    model="models/gemini-embedding-001", api_key=llm_key
+)
 
-embedding = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001",api_key=llm_key)
 
 def get_vector_store(thread_id: str):
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     persist_path = os.path.join(BASE_DIR, "chroma_db")
     os.makedirs(persist_path, exist_ok=True)
     return Chroma(
-    collection_name=f"user_{thread_id}",
-    embedding_function=embedding,
-    persist_directory=persist_path
+        collection_name=f"user_{thread_id}",
+        embedding_function=embedding,
+        persist_directory=persist_path,
     )
 
 
+def ingest_pdfs_to_chroma(path: str, thread_id: str):
 
-
-
-def ingest_pdfs_to_chroma(path: str,thread_id: str):
-    
     vector_store = get_vector_store(thread_id=thread_id)
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, 
-        chunk_overlap=100
-    )
-    
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+
     all_chunks = []
     all_metadatas = []
-    
 
     reader = PdfReader(path)
     print(f"--- Processing {path} ---")
 
     for i, page in enumerate(reader.pages):
-        text = page.extract_text()or""
+        text = page.extract_text() or ""
         chunks = text_splitter.split_text(text)
-            
+
         for chunk in chunks:
             all_chunks.append(chunk)
             all_metadatas.append({"source": path, "page": i})
 
-
-    vector_store.add_texts(
-        texts=all_chunks,
-        metadatas=all_metadatas
-    )
+    vector_store.add_texts(texts=all_chunks, metadatas=all_metadatas)
     # Chroma auto-persists when persist_directory is set; .persist() was removed in Chroma 0.4+
     print(f"Successfully ingested {len(all_chunks)} chunks into ChromaDB.")
+
+
+import time
+import random
+from google.genai.errors import ServerError
+
+
+def invoke_with_retry(model, messages, max_attempts=4):
+    for attempt in range(max_attempts):
+        try:
+            return model.invoke(messages)
+
+        except ServerError as e:
+            if e.code != 503 or attempt == max_attempts - 1:
+                raise
+
+            delay = min(2**attempt + random.uniform(0, 1), 15)
+            print(f"Gemini 503. Retrying in {delay:.1f}s...")
+            time.sleep(delay)
+
 
 # Usage
 # ingest_pdfs_to_chroma("./data/user/Resume.pdf")

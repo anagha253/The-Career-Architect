@@ -98,3 +98,77 @@ This project was refined using **[Cursor](https://cursor.com)** for AI-assisted 
 - **Fix bugs** — Including ChromaDB `persist()` deprecation, LangGraph `messages_key` mismatch, and Streamlit function ordering
 - **Speed up development** — Rapid prototyping, graph wiring, and API integration
 - **Improve code quality** — Consistent error handling, type hints, and structure
+
+
+## Evaluation & Reliability Engineering
+
+### Problem
+
+LLM-based job matching can incorrectly infer candidate qualifications from related technical experience or classify insufficient evidence as a missing skill.
+
+Career Architect explores evidence-grounded skill classification to make job-fit analysis more transparent and verifiable.
+
+### Evaluation Methodology
+
+The experimental analyser uses ChromaDB to retrieve candidate information and Gemini to evaluate job requirements against retrieved evidence.
+
+Each requirement is assigned one of three labels:
+
+- **Demonstrated:** Explicit evidence supports the complete requirement.
+- **Uncertain:** Evidence is partial, indirect, ambiguous, or insufficient.
+- **Missing:** The candidate explicitly states they lack the required qualification.
+
+The evaluation uses synthetic candidate profiles and manually assigned ground-truth labels.
+
+### Experiment 1 — Single-Requirement Classification
+
+Evaluated 15 synthetic candidate–requirement pairs, balanced across the three evidence categories.
+
+**Result: 15/15 correct classifications (100%).**
+
+This established initial functionality on short, controlled examples but does not demonstrate generalization to real-world resumes.
+
+### Experiment 2 — Multi-Requirement Classification
+
+Evaluated five synthetic candidate profiles against five job requirements each, producing 25 requirement-level classifications.
+
+| Metric | Baseline prompt | Improved prompt |
+|---|---:|---:|
+| Correct classifications | 18/25 | 24/25 |
+| Accuracy | 72% | 96% |
+| Classification errors | 7 | 1 |
+
+The baseline frequently classified insufficient evidence as **Missing**, instead of **Uncertain**.
+
+### Targeted Improvement
+
+A revised classification policy explicitly distinguishes missing qualifications from insufficient evidence.
+
+The central decision rule is:
+
+**Absence of evidence is not evidence of absence.**
+
+The improved prompt reduced classification errors from seven to one on the same evaluation dataset.
+
+### Remaining Failure
+
+One scenario involving hands-on LLM benchmarking remained incorrectly classified as Missing rather than Uncertain.
+
+This highlights the difficulty of interpreting negative statements that address only part of a broader technical requirement.
+
+### Limitations
+
+- Small, synthetic evaluation dataset.
+- Ground-truth labels were manually assigned.
+- The same multi-requirement cases informed the prompt revision and were used for the before/after comparison.
+- Results do not establish performance on unseen real-world resumes.
+- Structured-output validation and automated evidence verification remain future improvements.
+- External LLM API availability and latency can affect evaluation execution.
+
+### Future Improvements
+
+- Evaluate on a larger, independently labeled dataset.
+- Add structured output validation and evidence-span verification.
+- Introduce LangSmith tracing and experiment tracking.
+- Measure latency, cost, and reliability across repeated runs.
+- Test longer resumes and requirements with conflicting or incomplete evidence.

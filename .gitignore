@@ -11,5 +11,7 @@ __pycache__/
 chroma_db/
 backend/chroma_db/
 
+eval/*.pdf
+
 # Logs
 *.log

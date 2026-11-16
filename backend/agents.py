@@ -3,6 +3,7 @@ Cyclic Multi-Agent Career Strategist using LangGraph v0.2+, Gemini 2.5 Flash, an
 Researches jobs (Tavily), analyzes against RAG (ChromaDB), pauses for HITL approval,
 then writes and reviews a cold email.
 """
+
 import os
 from typing import Annotated, TypedDict, List, Any, Optional
 from dotenv import load_dotenv
@@ -23,7 +24,7 @@ LLM_KEY = os.getenv("LLM_KEY") or os.getenv("GOOGLE_API_KEY")
 TAVILY_KEY = os.getenv("TAVILY_KEY")
 
 model = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-3.8-flash",
     temperature=0.6,
     api_key=LLM_KEY,
 )
@@ -31,6 +32,7 @@ model = ChatGoogleGenerativeAI(
 
 class State(TypedDict):
     """Graph state with message history, context, and outputs."""
+
     message: Annotated[List[BaseMessage], add_messages]
     location: str
     role: str
@@ -50,14 +52,20 @@ researcher_model = model.bind_tools(tools)
 def researcher(state: State) -> dict:
     """Binds Tavily to Gemini to find relevant job openings."""
     try:
-        prompt = SystemMessage(content=(
-            f"You are a job researcher. Find 3–5 relevant job openings for the role "
-            f"'{state['role']}' in '{state['location']}'. Use Tavily to search. "
-            f"Focus on Backend Engineer, AI/ML Engineer, or Software Engineer roles. "
-            f"Return structured job info: title, company, link, brief description."
-        ))
-        user_msg = state["message"][-1] if state["message"] else HumanMessage(
-            content=f"Find {state['role']} jobs in {state['location']}"
+        prompt = SystemMessage(
+            content=(
+                f"You are a job researcher. Find 3–5 relevant job openings for the role "
+                f"'{state['role']}' in '{state['location']}'. Use Tavily to search. "
+                f"Focus on Backend Engineer, AI/ML Engineer, or Software Engineer roles. "
+                f"Return structured job info: title, company, link, brief description."
+            )
+        )
+        user_msg = (
+            state["message"][-1]
+            if state["message"]
+            else HumanMessage(
+                content=f"Find {state['role']} jobs in {state['location']}"
+            )
         )
         messages = [prompt] + state["message"] + [user_msg]
         response = researcher_model.invoke(messages)
@@ -72,22 +80,23 @@ def analyser(state: State, config: RunnableConfig) -> dict:
         thread_id = config.get("configurable", {}).get("thread_id", "default")
         vector_store = utility.get_vector_store(thread_id)
         retriever = vector_store.as_retriever(k=5)
-        
+
         query = (
             "Summarize: projects with one-line descriptions, academic background, "
             "work experience in 5 bullet points. Be concise."
         )
         resume_context = retriever.invoke(query)
         resume_text = "\n".join(
-            d.page_content if hasattr(d, "page_content") else str(d) for d in resume_context
+            d.page_content if hasattr(d, "page_content") else str(d)
+            for d in resume_context
         )
-        
+
         jobs_context = ""
         for msg in reversed(state["message"]):
             if hasattr(msg, "content") and msg.content:
                 jobs_context = str(msg.content)
                 break
-        
+
         analysis_prompt = (
             f"Resume/projects summary:\n{resume_text}\n\n"
             f"Found jobs:\n{jobs_context}\n\n"
@@ -108,11 +117,13 @@ def human_decision(state: State) -> dict:
         if hasattr(msg, "content") and msg.content:
             analysis = str(msg.content)
             break
-    
-    decision = interrupt({
-        "message": f"Analysis:\n{analysis}\n\nGenerate cold email? Reply yes or no.",
-        "analysis": analysis,
-    })
+
+    decision = interrupt(
+        {
+            "message": f"Analysis:\n{analysis}\n\nGenerate cold email? Reply yes or no.",
+            "analysis": analysis,
+        }
+    )
     decision_str = str(decision).strip().lower() if decision else "no"
     return {"decision": "yes" if decision_str == "yes" else "no"}
 
@@ -132,7 +143,7 @@ def writer(state: State) -> dict:
             if hasattr(msg, "content") and msg.content:
                 context = str(msg.content)
                 break
-        
+
         prompt = (
             f"You are a professional cold email writer. Using this candidate/job context:\n{context}\n\n"
             "Write a crisp, grammatically perfect cold email that pitches the candidate effectively. "
